@@ -2,6 +2,8 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+const { google } = require('googleapis');
 
 const app = express();
 const port = 3000;
@@ -28,9 +30,8 @@ db.serialize(() => {
         pwb1 INTEGER, pwb2 INTEGER, pwb3 INTEGER, pwb4 INTEGER, pwb5 INTEGER, pwb6 INTEGER,
         pwb7 INTEGER, pwb8 INTEGER, pwb9 INTEGER, pwb10 INTEGER, pwb11 INTEGER, pwb12 INTEGER,
         pwb13 INTEGER, pwb14 INTEGER, pwb15 INTEGER, pwb16 INTEGER, pwb17 INTEGER, pwb18 INTEGER,
-        pwb19 INTEGER, pwb20 INTEGER, pwb21 INTEGER, pwb22 INTEGER, pwb23 INTEGER,
         soj1 INTEGER, soj2 INTEGER, soj3 INTEGER, soj4 INTEGER, soj5 INTEGER, soj6 INTEGER,
-        soj7 INTEGER, soj8 INTEGER, soj9 INTEGER, soj10 INTEGER, soj11 INTEGER, soj12 INTEGER, soj13 INTEGER,
+        soj7 INTEGER, soj8 INTEGER, soj9 INTEGER, soj10 INTEGER, soj11 INTEGER, soj12 INTEGER,
         wildlife1 INTEGER, wildlife2 INTEGER, wildlife3 INTEGER, wildlife4 INTEGER, wildlife5 INTEGER, wildlife6 INTEGER,
         wildlife7 INTEGER, wildlife8 INTEGER, wildlife9 INTEGER,
         first_visit TEXT, site_background TEXT, wildlife_sharing TEXT, future_vision TEXT, contact_info TEXT,
@@ -122,8 +123,8 @@ app.get('/database', (req, res) => {
                 '<th>ID</th><th>Date</th><th>Lang</th><th>Pic_Resp</th>' +
                 '<th>PA1</th><th>PA2</th><th>PA3</th><th>PA4</th><th>PA5</th><th>PA6</th><th>PA7</th><th>PA8</th><th>PA9</th><th>PA10</th><th>PA11</th><th>PA12</th><th>PA13</th><th>PA14</th><th>PA_Avg</th>' +
                 '<th>N1</th><th>N2</th><th>N3</th><th>N4</th><th>N_Avg</th>' +
-                '<th>PWB1</th><th>PWB2</th><th>PWB3</th><th>PWB4</th><th>PWB5</th><th>PWB6</th><th>PWB7</th><th>PWB8</th><th>PWB9</th><th>PWB10</th><th>PWB11</th><th>PWB12</th><th>PWB13</th><th>PWB14</th><th>PWB15</th><th>PWB16</th><th>PWB17</th><th>PWB18</th><th>PWB19</th><th>PWB20</th><th>PWB21</th><th>PWB22</th><th>PWB23</th><th>PWB_Avg</th>' +
-                '<th>SOJ1</th><th>SOJ2</th><th>SOJ3</th><th>SOJ4</th><th>SOJ5</th><th>SOJ6</th><th>SOJ7</th><th>SOJ8</th><th>SOJ9</th><th>SOJ10</th><th>SOJ11</th><th>SOJ12</th><th>SOJ13</th><th>SOJ_Avg</th>' +
+                '<th>PWB1</th><th>PWB2</th><th>PWB3</th><th>PWB4</th><th>PWB5</th><th>PWB6</th><th>PWB7</th><th>PWB8</th><th>PWB9</th><th>PWB10</th><th>PWB11</th><th>PWB12</th><th>PWB13</th><th>PWB14</th><th>PWB15</th><th>PWB16</th><th>PWB17</th><th>PWB18</th><th>PWB_Avg</th>' +
+                '<th>SOJ1</th><th>SOJ2</th><th>SOJ3</th><th>SOJ4</th><th>SOJ5</th><th>SOJ6</th><th>SOJ7</th><th>SOJ8</th><th>SOJ9</th><th>SOJ10</th><th>SOJ11</th><th>SOJ12</th><th>SOJ_Avg</th>' +
                 '<th>WF1</th><th>WF2</th><th>WF3</th><th>WF4</th><th>WF5</th><th>WF6</th><th>WF7</th><th>WF8</th><th>WF9</th><th>WF_Avg</th>' +
                 '<th>Age</th><th>Gender</th><th>Education</th><th>Distance</th><th>Visit_Freq</th>' +
                 '<th>First_Visit</th><th>Background</th><th>Wildlife_Share</th><th>Future</th><th>Contact</th>' +
@@ -138,16 +139,16 @@ app.get('/database', (req, res) => {
                     const nostalgiaValues = [survey.nostalgia1, survey.nostalgia2, survey.nostalgia3, survey.nostalgia4].filter(v => v != null);
                     const nostalgiaAvg = nostalgiaValues.length > 0 ? (nostalgiaValues.reduce((a, b) => a + b, 0) / nostalgiaValues.length).toFixed(2) : '';
                     
-                    const pwbValues = [survey.pwb1, survey.pwb2, survey.pwb3, survey.pwb4, survey.pwb5, survey.pwb6, survey.pwb7, survey.pwb8, survey.pwb9, survey.pwb10, survey.pwb11, survey.pwb12, survey.pwb13, survey.pwb14, survey.pwb15, survey.pwb16, survey.pwb17, survey.pwb18, survey.pwb19, survey.pwb20, survey.pwb21, survey.pwb22, survey.pwb23].filter(v => v != null);
+                    const pwbValues = [survey.pwb1, survey.pwb2, survey.pwb3, survey.pwb4, survey.pwb5, survey.pwb6, survey.pwb7, survey.pwb8, survey.pwb9, survey.pwb10, survey.pwb11, survey.pwb12, survey.pwb13, survey.pwb14, survey.pwb15, survey.pwb16, survey.pwb17, survey.pwb18].filter(v => v != null);
                     const pwbAvg = pwbValues.length > 0 ? (pwbValues.reduce((a, b) => a + b, 0) / pwbValues.length).toFixed(2) : '';
                     
-                    const sojValues = [survey.soj1, survey.soj2, survey.soj3, survey.soj4, survey.soj5, survey.soj6, survey.soj7, survey.soj8, survey.soj9, survey.soj10, survey.soj11, survey.soj12, survey.soj13].filter(v => v != null);
+                    const sojValues = [survey.soj1, survey.soj2, survey.soj3, survey.soj4, survey.soj5, survey.soj6, survey.soj7, survey.soj8, survey.soj9, survey.soj10, survey.soj11, survey.soj12].filter(v => v != null);
                     const sojAvg = sojValues.length > 0 ? (sojValues.reduce((a, b) => a + b, 0) / sojValues.length).toFixed(2) : '';
                     
                     const wildlifeValues = [survey.wildlife1, survey.wildlife2, survey.wildlife3, survey.wildlife4, survey.wildlife5, survey.wildlife6, survey.wildlife7, survey.wildlife8, survey.wildlife9].filter(v => v != null);
                     const wildlifeAvg = wildlifeValues.length > 0 ? (wildlifeValues.reduce((a, b) => a + b, 0) / wildlifeValues.length).toFixed(2) : '';
                     
-                    const date = new Date(survey.created_at).toLocaleDateString();
+                    const date = new Date(survey.created_at).toLocaleString();
                     const importantPlacesData = survey.important_places_data || '';
                     const wildlifeData = survey.wildlife_encounters_data || '';
                     const drawingsData = survey.drawings_data || '';
@@ -195,11 +196,6 @@ app.get('/database', (req, res) => {
                         <td class="number-col">${survey.pwb16 || ''}</td>
                         <td class="number-col">${survey.pwb17 || ''}</td>
                         <td class="number-col">${survey.pwb18 || ''}</td>
-                        <td class="number-col">${survey.pwb19 || ''}</td>
-                        <td class="number-col">${survey.pwb20 || ''}</td>
-                        <td class="number-col">${survey.pwb21 || ''}</td>
-                        <td class="number-col">${survey.pwb22 || ''}</td>
-                        <td class="number-col">${survey.pwb23 || ''}</td>
                         <td class="number-col">${pwbAvg}</td>
                         <td class="number-col">${survey.soj1 || ''}</td>
                         <td class="number-col">${survey.soj2 || ''}</td>
@@ -213,7 +209,6 @@ app.get('/database', (req, res) => {
                         <td class="number-col">${survey.soj10 || ''}</td>
                         <td class="number-col">${survey.soj11 || ''}</td>
                         <td class="number-col">${survey.soj12 || ''}</td>
-                        <td class="number-col">${survey.soj13 || ''}</td>
                         <td class="number-col">${sojAvg}</td>
                         <td class="number-col">${survey.wildlife1 || ''}</td>
                         <td class="number-col">${survey.wildlife2 || ''}</td>
@@ -263,9 +258,9 @@ app.get('/download-csv', (req, res) => {
             'PA11', 'PA12', 'PA13', 'PA14', 'PA_Average',
             'Nostalgia1', 'Nostalgia2', 'Nostalgia3', 'Nostalgia4', 'Nostalgia_Average',
             'PWB1', 'PWB2', 'PWB3', 'PWB4', 'PWB5', 'PWB6', 'PWB7', 'PWB8', 'PWB9', 'PWB10',
-            'PWB11', 'PWB12', 'PWB13', 'PWB14', 'PWB15', 'PWB16', 'PWB17', 'PWB18', 'PWB19', 'PWB20', 'PWB21', 'PWB22', 'PWB23', 'PWB_Average',
+            'PWB11', 'PWB12', 'PWB13', 'PWB14', 'PWB15', 'PWB16', 'PWB17', 'PWB18', 'PWB_Average',
             'SOJ1', 'SOJ2', 'SOJ3', 'SOJ4', 'SOJ5', 'SOJ6', 'SOJ7', 'SOJ8', 'SOJ9', 'SOJ10',
-            'SOJ11', 'SOJ12', 'SOJ13', 'SOJ_Average',
+            'SOJ11', 'SOJ12', 'SOJ_Average',
             'Wildlife1', 'Wildlife2', 'Wildlife3', 'Wildlife4', 'Wildlife5', 'Wildlife6', 'Wildlife7', 'Wildlife8', 'Wildlife9', 'Wildlife_Average',
             'Age', 'Gender', 'Education', 'Distance', 'Visit_Frequency',
             'First_Visit', 'Site_Background', 'Wildlife_Sharing', 'Future_Vision', 'Total_Map_Markers',
@@ -290,16 +285,16 @@ app.get('/download-csv', (req, res) => {
             const nostalgiaValues = [survey.nostalgia1, survey.nostalgia2, survey.nostalgia3, survey.nostalgia4].filter(v => v != null);
             const nostalgiaAvg = nostalgiaValues.length > 0 ? (nostalgiaValues.reduce((a, b) => a + b, 0) / nostalgiaValues.length).toFixed(2) : '';
             
-            const pwbValues = [survey.pwb1, survey.pwb2, survey.pwb3, survey.pwb4, survey.pwb5, survey.pwb6, survey.pwb7, survey.pwb8, survey.pwb9, survey.pwb10, survey.pwb11, survey.pwb12, survey.pwb13, survey.pwb14, survey.pwb15, survey.pwb16, survey.pwb17, survey.pwb18, survey.pwb19, survey.pwb20, survey.pwb21, survey.pwb22, survey.pwb23].filter(v => v != null);
+            const pwbValues = [survey.pwb1, survey.pwb2, survey.pwb3, survey.pwb4, survey.pwb5, survey.pwb6, survey.pwb7, survey.pwb8, survey.pwb9, survey.pwb10, survey.pwb11, survey.pwb12, survey.pwb13, survey.pwb14, survey.pwb15, survey.pwb16, survey.pwb17, survey.pwb18].filter(v => v != null);
             const pwbAvg = pwbValues.length > 0 ? (pwbValues.reduce((a, b) => a + b, 0) / pwbValues.length).toFixed(2) : '';
             
-            const sojValues = [survey.soj1, survey.soj2, survey.soj3, survey.soj4, survey.soj5, survey.soj6, survey.soj7, survey.soj8, survey.soj9, survey.soj10, survey.soj11, survey.soj12, survey.soj13].filter(v => v != null);
+            const sojValues = [survey.soj1, survey.soj2, survey.soj3, survey.soj4, survey.soj5, survey.soj6, survey.soj7, survey.soj8, survey.soj9, survey.soj10, survey.soj11, survey.soj12].filter(v => v != null);
             const sojAvg = sojValues.length > 0 ? (sojValues.reduce((a, b) => a + b, 0) / sojValues.length).toFixed(2) : '';
             
                     const wildlifeValues = [survey.wildlife1, survey.wildlife2, survey.wildlife3, survey.wildlife4, survey.wildlife5, survey.wildlife6, survey.wildlife7, survey.wildlife8, survey.wildlife9].filter(v => v != null);
         const wildlifeAvg = wildlifeValues.length > 0 ? (wildlifeValues.reduce((a, b) => a + b, 0) / wildlifeValues.length).toFixed(2) : '';
             
-            const date = new Date(survey.created_at).toISOString().split('T')[0];
+            const date = new Date(survey.created_at).toLocaleString();
             
             const row = [
                 survey.id,
@@ -310,9 +305,9 @@ app.get('/download-csv', (req, res) => {
                 survey.pa11 || '', survey.pa12 || '', survey.pa13 || '', survey.pa14 || '', paAvg,
                 survey.nostalgia1 || '', survey.nostalgia2 || '', survey.nostalgia3 || '', survey.nostalgia4 || '', nostalgiaAvg,
                 survey.pwb1 || '', survey.pwb2 || '', survey.pwb3 || '', survey.pwb4 || '', survey.pwb5 || '', survey.pwb6 || '', survey.pwb7 || '', survey.pwb8 || '', survey.pwb9 || '', survey.pwb10 || '',
-                survey.pwb11 || '', survey.pwb12 || '', survey.pwb13 || '', survey.pwb14 || '', survey.pwb15 || '', survey.pwb16 || '', survey.pwb17 || '', survey.pwb18 || '', survey.pwb19 || '', survey.pwb20 || '', survey.pwb21 || '', survey.pwb22 || '', survey.pwb23 || '', pwbAvg,
+                survey.pwb11 || '', survey.pwb12 || '', survey.pwb13 || '', survey.pwb14 || '', survey.pwb15 || '', survey.pwb16 || '', survey.pwb17 || '', survey.pwb18 || '', pwbAvg,
                 survey.soj1 || '', survey.soj2 || '', survey.soj3 || '', survey.soj4 || '', survey.soj5 || '', survey.soj6 || '', survey.soj7 || '', survey.soj8 || '', survey.soj9 || '', survey.soj10 || '',
-                survey.soj11 || '', survey.soj12 || '', survey.soj13 || '', sojAvg,
+                survey.soj11 || '', survey.soj12 || '', sojAvg,
                 survey.wildlife1 || '', survey.wildlife2 || '', survey.wildlife3 || '', survey.wildlife4 || '', survey.wildlife5 || '', survey.wildlife6 || '', survey.wildlife7 || '', survey.wildlife8 || '', survey.wildlife9 || '', wildlifeAvg,
                 survey.age || '', survey.gender || '', survey.education || '', survey.distance || '', survey.visit_frequency || '',
                 survey.first_visit ? `"${survey.first_visit.replace(/"/g, '""')}"` : '',
@@ -393,22 +388,22 @@ app.post('/submit-survey', (req, res) => {
         language, consent1, consent2, consent3, consent4, picture_response,
         pa1, pa2, pa3, pa4, pa5, pa6, pa7, pa8, pa9, pa10, pa11, pa12, pa13, pa14,
         nostalgia1, nostalgia2, nostalgia3, nostalgia4,
-        pwb1, pwb2, pwb3, pwb4, pwb5, pwb6, pwb7, pwb8, pwb9, pwb10, pwb11, pwb12, pwb13, pwb14, pwb15, pwb16, pwb17, pwb18, pwb19, pwb20, pwb21, pwb22, pwb23,
-        soj1, soj2, soj3, soj4, soj5, soj6, soj7, soj8, soj9, soj10, soj11, soj12, soj13,
+        pwb1, pwb2, pwb3, pwb4, pwb5, pwb6, pwb7, pwb8, pwb9, pwb10, pwb11, pwb12, pwb13, pwb14, pwb15, pwb16, pwb17, pwb18,
+        soj1, soj2, soj3, soj4, soj5, soj6, soj7, soj8, soj9, soj10, soj11, soj12,
         wildlife1, wildlife2, wildlife3, wildlife4, wildlife5, wildlife6, wildlife7, wildlife8, wildlife9,
         first_visit, site_background, wildlife_sharing, future_vision, contact_info,
         distance, age, gender, education, visit_frequency,
         important_places, important_drawings, wildlife_encounters,
         important_places_data, wildlife_encounters_data, drawings_data
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     
     const values = [
         data.language || 'en',
         data.consent1, data.consent2, data.consent3, data.consent4, data.picture_response,
         data.pa1, data.pa2, data.pa3, data.pa4, data.pa5, data.pa6, data.pa7, data.pa8, data.pa9, data.pa10, data.pa11, data.pa12, data.pa13, data.pa14,
         data.nostalgia1, data.nostalgia2, data.nostalgia3, data.nostalgia4,
-        data.pwb1, data.pwb2, data.pwb3, data.pwb4, data.pwb5, data.pwb6, data.pwb7, data.pwb8, data.pwb9, data.pwb10, data.pwb11, data.pwb12, data.pwb13, data.pwb14, data.pwb15, data.pwb16, data.pwb17, data.pwb18, data.pwb19, data.pwb20, data.pwb21, data.pwb22, data.pwb23,
-        data.soj1, data.soj2, data.soj3, data.soj4, data.soj5, data.soj6, data.soj7, data.soj8, data.soj9, data.soj10, data.soj11, data.soj12, data.soj13,
+        data.pwb1, data.pwb2, data.pwb3, data.pwb4, data.pwb5, data.pwb6, data.pwb7, data.pwb8, data.pwb9, data.pwb10, data.pwb11, data.pwb12, data.pwb13, data.pwb14, data.pwb15, data.pwb16, data.pwb17, data.pwb18,
+        data.soj1, data.soj2, data.soj3, data.soj4, data.soj5, data.soj6, data.soj7, data.soj8, data.soj9, data.soj10, data.soj11, data.soj12,
         data.wildlife1, data.wildlife2, data.wildlife3, data.wildlife4, data.wildlife5, data.wildlife6, data.wildlife7, data.wildlife8, data.wildlife9,
         data.first_visit, data.site_background, data.wildlife_sharing, data.future_vision, data.contact_info,
         data.distance, data.age, data.gender, data.education, data.visit_frequency,
@@ -493,6 +488,32 @@ app.post('/submit-survey', (req, res) => {
         });
     });
 });
+
+async function uploadCSVToDrive(filePath, fileName, folderId) {
+  const credentials = require('./credentials.json');
+  const token = require('./token.json');
+  const { client_secret, client_id, redirect_uris } = credentials.installed;
+  const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+  oAuth2Client.setCredentials(token);
+
+  const drive = google.drive({ version: 'v3', auth: oAuth2Client });
+
+  const fileMetadata = {
+    name: fileName,
+    parents: [folderId], // Google Drive folder ID
+  };
+  const media = {
+    mimeType: 'text/csv',
+    body: fs.createReadStream(filePath),
+  };
+
+  const response = await drive.files.create({
+    resource: fileMetadata,
+    media: media,
+    fields: 'id',
+  });
+  return response.data.id;
+}
 
 app.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
