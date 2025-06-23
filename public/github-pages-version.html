@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="title">Urban Green Spaces Survey</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2d8a47">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Green Survey">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin=""/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    
+    <!-- Include all styles inline for GitHub Pages -->
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2d8a47, #4facfe);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .language-switcher {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .language-switcher button {
+            background: #fff;
+            border: 2px solid #2d8a47;
+            padding: 10px 20px;
+            margin: 0 5px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .language-switcher button:hover {
+            background: #2d8a47;
+            color: white;
+        }
+
+        .language-switcher button.active {
+            background: #2d8a47;
+            color: white;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 1.5rem;
+            color: #2c5530;
+            text-align: center;
+            border-bottom: 3px solid #2d8a47;
+            padding-bottom: 15px;
+        }
+
+        h2 {
+            font-size: 22px;
+            margin: 2rem 0 1rem 0;
+            color: #2c5530;
+            border-left: 5px solid #2d8a47;
+            padding-left: 15px;
+        }
+
+        p {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #555;
+        }
+
+        .welcome-section {
+            background: #f8fffe;
+            padding: 2rem;
+            border-radius: 10px;
+            border: 2px solid #2d8a47;
+            margin-bottom: 2rem;
+        }
+
+        .consent-section {
+            background: #fff5f5;
+            padding: 2rem;
+            border-radius: 10px;
+            border: 2px solid #d69e2e;
+            margin-bottom: 2rem;
+        }
+
+        .question {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 5px solid #2d8a47;
+        }
+
+        .question-title {
+            font-weight: bold;
+            font-size: 18px;
+            color: #2c5530;
+            margin-bottom: 1rem;
+        }
+
+        input[type="text"], textarea {
+            display: block;
+            width: 100%;
+            margin-bottom: 1rem;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #2d8a47;
+            box-shadow: 0 0 0 3px rgba(45, 138, 71, 0.1);
+        }
+
+        input[type="radio"], input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            cursor: pointer;
+            padding: 8px 0;
+            transition: color 0.2s ease;
+        }
+
+        label:hover {
+            color: #2d8a47;
+        }
+
+        .likert {
+            margin-bottom: 1.5rem;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .likert p {
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .likert label {
+            display: inline-block;
+            margin-right: 15px;
+            margin-bottom: 0;
+        }
+
+        .likert-7 label {
+            margin-right: 8px;
+        }
+
+        .map-container {
+            width: 100%;
+            height: 350px;
+            margin: 1rem 0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .map {
+            width: 100%;
+            height: 100%;
+        }
+
+        hr {
+            border: 0;
+            border-top: 2px solid #e0e0e0;
+            margin: 2rem 0;
+        }
+
+        .submit-btn {
+            background: linear-gradient(45deg, #2d8a47, #4facfe);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            display: block;
+            margin: 30px auto;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(45, 138, 71, 0.3);
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(45, 138, 71, 0.4);
+        }
+
+        #message {
+            text-align: center;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            display: none;
+            font-size: 16px;
+            position: relative;
+            z-index: 1000;
+            margin-top: 10px;
+        }
+
+        #message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+            display: block;
+            box-shadow: 0 4px 15px rgba(21, 87, 36, 0.2);
+        }
+
+        #message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+            display: block;
+            box-shadow: 0 4px 15px rgba(114, 28, 36, 0.2);
+        }
+
+        /* GitHub Pages specific styles */
+        .github-notice {
+            background: #e8f4f8;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 2px solid #2d8a47;
+            text-align: center;
+        }
+
+        .download-data-btn {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 10px;
+        }
+
+        .download-data-btn:hover {
+            background: #138496;
+        }
+
+        /* Offline Status Styles */
+        .status-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10000;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .status-online {
+            background: #d4edda;
+            color: #155724;
+            border-bottom: 2px solid #c3e6cb;
+        }
+
+        .status-offline {
+            background: #f8d7da;
+            color: #721c24;
+            border-bottom: 2px solid #f5c6cb;
+        }
+
+        .pending-sync {
+            background: #fff3cd;
+            color: #856404;
+            padding: 8px;
+            text-align: center;
+            font-size: 12px;
+            border-bottom: 1px solid #ffeaa7;
+            display: none;
+        }
+
+        body.with-status {
+            padding-top: 50px;
+        }
+    </style>
+</head>
+<body class="with-status">
+    <!-- Offline Status Bar -->
+    <div id="connection-status" class="status-bar status-online">🟢 Ready to collect data</div>
+    <div id="pending-surveys" class="pending-sync"></div>
+    
+    <div class="language-switcher">
+        <button onclick="switchLanguage('en')" id="lang-en" class="active">English</button>
+        <button onclick="switchLanguage('pl')" id="lang-pl">Polski</button>
+    </div>
+
+    <div id="message"></div>
+
+    <div class="container">
+        <h1 data-i18n="main-title">Urban Green Spaces Survey</h1>
+        
+        <div class="github-notice">
+            <h3>📊 GitHub Pages Version - Data Collection Only</h3>
+            <p>This version stores survey data locally in your browser. Data will be available for download after completion.</p>
+            <button class="download-data-btn" onclick="downloadAllData()">📥 Download All Survey Data</button>
+            <button class="download-data-btn" onclick="clearAllData()">🗑️ Clear All Data</button>
+            <p id="survey-count">Surveys collected: <span id="count">0</span></p>
+        </div>
+        
+        <!-- Rest of the form content would be the same as the original, but simplified for space -->
+        <div class="welcome-section">
+            <h2>Welcome!</h2>
+            <p>This is a simplified version for GitHub Pages. Complete the survey and download your data.</p>
+        </div>
+
+        <form id="survey-form" onsubmit="event.preventDefault(); submitForm();">
+            <div class="question">
+                <p class="question-title">Sample question for demonstration</p>
+                <label><input type="radio" name="sample" value="yes" required>Yes</label>
+                <label><input type="radio" name="sample" value="no">No</label>
+            </div>
+
+            <button type="submit" class="submit-btn">Submit Survey</button>
+        </form>
+    </div>
+
+    <!-- GitHub Pages compatible scripts -->
+    <script>
+        // Simple offline storage for GitHub Pages
+        class GitHubPagesStorage {
+            constructor() {
+                this.storageKey = 'greenSurveyData';
+                this.updateSurveyCount();
+            }
+
+            saveSurvey(surveyData) {
+                try {
+                    const surveys = this.getAllSurveys();
+                    const survey = {
+                        id: Date.now(),
+                        timestamp: new Date().toISOString(),
+                        data: surveyData
+                    };
+                    surveys.push(survey);
+                    localStorage.setItem(this.storageKey, JSON.stringify(surveys));
+                    this.updateSurveyCount();
+                    return true;
+                } catch (error) {
+                    console.error('Error saving survey:', error);
+                    return false;
+                }
+            }
+
+            getAllSurveys() {
+                try {
+                    const data = localStorage.getItem(this.storageKey);
+                    return data ? JSON.parse(data) : [];
+                } catch (error) {
+                    console.error('Error retrieving surveys:', error);
+                    return [];
+                }
+            }
+
+            clearAllSurveys() {
+                localStorage.removeItem(this.storageKey);
+                this.updateSurveyCount();
+            }
+
+            updateSurveyCount() {
+                const count = this.getAllSurveys().length;
+                const countElement = document.getElementById('count');
+                if (countElement) {
+                    countElement.textContent = count;
+                }
+            }
+
+            downloadData() {
+                const surveys = this.getAllSurveys();
+                const dataStr = JSON.stringify(surveys, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `green_survey_data_${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+            }
+        }
+
+        // Initialize storage
+        const storage = new GitHubPagesStorage();
+
+        // Basic form submission
+        function submitForm() {
+            const formData = new FormData(document.getElementById('survey-form'));
+            const data = {};
+            
+            for (let [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+            
+            data.language = 'en';
+            data.userAgent = navigator.userAgent;
+            data.timestamp = new Date().toISOString();
+            
+            if (storage.saveSurvey(data)) {
+                showMessage('Survey saved successfully! Data is stored locally in your browser.', 'success');
+                document.getElementById('survey-form').reset();
+            } else {
+                showMessage('Error saving survey. Please try again.', 'error');
+            }
+        }
+
+        function downloadAllData() {
+            storage.downloadData();
+        }
+
+        function clearAllData() {
+            if (confirm('Are you sure you want to clear all survey data? This cannot be undone.')) {
+                storage.clearAllSurveys();
+                showMessage('All data cleared successfully.', 'success');
+            }
+        }
+
+        function switchLanguage(lang) {
+            // Simplified language switching
+            document.querySelectorAll('.language-switcher button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`lang-${lang}`).classList.add('active');
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = message;
+            messageDiv.className = type;
+            messageDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Update status
+        document.getElementById('connection-status').textContent = '💾 Local Storage Mode - Data saved in browser';
+        
+        // Service Worker for offline capability
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw-github.js')
+                .then(registration => console.log('SW registered'))
+                .catch(error => console.log('SW registration failed'));
+        }
+    </script>
+</body>
+</html> 
