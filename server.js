@@ -2,8 +2,6 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs');
-const { google } = require('googleapis');
 
 const app = express();
 const port = 3000;
@@ -488,32 +486,6 @@ app.post('/submit-survey', (req, res) => {
         });
     });
 });
-
-async function uploadCSVToDrive(filePath, fileName, folderId) {
-  const credentials = require('./credentials.json');
-  const token = require('./token.json');
-  const { client_secret, client_id, redirect_uris } = credentials.installed;
-  const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
-  oAuth2Client.setCredentials(token);
-
-  const drive = google.drive({ version: 'v3', auth: oAuth2Client });
-
-  const fileMetadata = {
-    name: fileName,
-    parents: [folderId], // Google Drive folder ID
-  };
-  const media = {
-    mimeType: 'text/csv',
-    body: fs.createReadStream(filePath),
-  };
-
-  const response = await drive.files.create({
-    resource: fileMetadata,
-    media: media,
-    fields: 'id',
-  });
-  return response.data.id;
-}
 
 app.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
