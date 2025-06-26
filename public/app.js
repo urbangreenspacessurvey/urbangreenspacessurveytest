@@ -45,8 +45,8 @@ function updateSection1Image(lang) {
 }
 
 function updateLikertLabels(lang) {
-    let first = '1: Strongly agree';
-    let last = '7: Strongly disagree';
+    let first = '1: Strongly disagree';
+    let last = '7: Strongly agree';
     if (lang === 'pl') {
         first = '1: Zdecydowanie nie zgadzam się';
         last = '7: Zdecydowanie zgadzam się';
