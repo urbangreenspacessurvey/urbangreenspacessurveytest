@@ -185,7 +185,7 @@ const translations = {
         'no': 'Nie',
         'section1-title': 'Cześć 1: Przywiązanie do terenu zielonego',
         'picture-response-title': 'Jaki jest Twój stosunek do przyrody? Proszę wybrać, który z poniższych rysunków w najlepszym stopniu opisuje Twój stosunek do przyrody. Proszę wybrać rysunek od 1 do 7 z powyżej ilustracji',
-        'place-attachment-title': 'Proszę wskazać, w jaki stopniu zgadzasz się lub nie zgadzasz z każdym z poniższych stwierdzeń dotyczących badanego terenu zielonego: 1 (zdecydowanie nie zgadzam się) do 7 (Zdecydowanie zgadzam się).',
+        'place-attachment-title': 'Proszę wskazać, w jakim stopniu zgadzasz się lub nie zgadzasz z każdym z poniższych stwierdzeń dotyczących Twojego dobrostanu psychicznego: 1 (zdecydowanie nie zgadzam się) do 7 (zdecydowanie zgadzam się)',
         'pa-q1': 'Ten teren zielony jest dla mnie bardzo wyjątkowy.',
         'pa-q2': 'Ten teren zielony bardzo wiele dla mnie znaczy.',
         'pa-q3': 'Jestem bardzo przywiązany do tego terenu zielonego.',
@@ -311,7 +311,7 @@ const translations = {
         'pwb-q18': 'Ludzie opisują mnie jako osobę hojną i gotową dzielić się swoim czasem z innymi.',
         // Section 3 - Scope of Justice
         'section2-title': 'Cześć 2: Dobrostan psychiczny',
-        'soj-title': 'Proszę oceń, w jakim stopniu zgadzasz się lub nie zgadzasz z następującymi stwierdzeniami dotyczącymi badanego terenu zielonego, od 1 (Zdecydowanie nie zgadzam się) do 7 (Zdecydowanie zgadzam się):',
+        'soj-title': 'Proszę wskazać, w jakim stopniu zgadzasz się lub nie zgadzasz z każdym z poniższych stwierdzeń dotyczących Twojego dobrostanu psychicznego: 1 (zdecydowanie nie zgadzam się) do 7 (zdecydowanie zgadzam się)',
         'soj-q1': 'Ten teren zielony w równym stopniu przynosi korzyści całemu życiu.',
         'soj-q2': 'Ten teren zielony wspiera dobrobyt całego życia.',
         'soj-q3': 'Ludzie i dzika przyroda mogą współistnieć w tym terenie zielonym.',
