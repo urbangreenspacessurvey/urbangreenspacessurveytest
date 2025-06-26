@@ -122,6 +122,7 @@ const translations = {
         // Psychological Well-Being Section
         'section2-title': 'Section 2: Personal Well-Being',
         'pwb-title': 'Please select one response below each statement to indicate how much you agree or disagree.',
+        'pwb-q1': 'I like most parts of my personality.',
         'pwb-q2': 'When I look at the story of my life, I am pleased with how things have turned out so far.',
         'pwb-q3': 'Some people wander aimlessly through life, but I am not one of them.',
         'pwb-q4': 'The demands of everyday life often get me down.',
@@ -303,7 +304,7 @@ const translations = {
         'pwb-q11': 'Myślę, że ważne jest posiadanie nowych doświadczeń, które wpływają na to, jak myślisz o sobie i świecie.',
         'pwb-q12': 'Moje codzienne działania często wydają mi się trywialne i nieważne.',
         'pwb-q13': 'Nie chcę próbować nowych rzeczy — moje życie jest w porządku takie, jakie jest.',
-        'pwb-q14': 'Lubię większość aspektów mojej osobowości.',
+        'pwb-q14': 'Już dawno zrezygnowałem z prób wprowadzenia dużych zmian lub ulepszeń w moim życiu.',
         'pwb-q15': 'Lubię planować przyszłość i pracować nad urzeczywistnieniem planów.',
         'pwb-q16': 'Życie jest dla mnie ciągłym procesem uczenia się, zmiany i rozwoju.',
         'pwb-q17': 'Gdybym był niezadowolony ze swojej sytuacji życiowej, podjąłbym skuteczne kroki, aby ją zmienić.',
