@@ -114,7 +114,7 @@ const translations = {
         'speech-not-supported': 'Speech recognition not supported in this browser.',
         'custom-emotion-prompt': 'Please describe your emotion:',
         // Nostalgia Section
-        'nostalgia-title': 'Please indicate your agreement with the following questions (1: strongly Agree 7: Strongly disagree)',
+        'nostalgia-title': 'Please indicate your agreement with the following questions (1: strongly disagree 7: Strongly Agree)',
         'nostalgia-q1': 'Being in this green area makes me feel nostalgic.',
         'nostalgia-q2': 'When I am in this green area, I often bring to mind memories from my past.',
         'nostalgia-q3': 'Spending time here reminds me of experiences I enjoyed earlier in my life.',
