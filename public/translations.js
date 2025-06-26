@@ -199,7 +199,7 @@ const translations = {
         'pa-q11': 'Kiedy spędzam czas w tym terenie zielonym, czuję głębokie poczucie jedności z naturą.',
         'pa-q12': 'Czułbym się mniej przywiązany do tego terenu zielonego, gdyby zniknęły rodzime rośliny i zwierzęta, które tu żyją.',
         'pa-q13': 'Uczę się wiele o sobie, spędzając czas w tym terenie zielonym.',
-        'pa-q14': 'Jestem bardzo przywiązany do przyrody występującej w tym terenie zielonym?',
+        'pa-q14': 'Jestem bardzo przywiązany do przyrody występującej w tym terenie zielonym.',
         'maps-title': 'Cześć 4: Zaznaczanie na mapie',
         'map1-title': 'Ważne miejsca. Zaznacz na mapie miejsca, które lubisz odwiedzać, aby odpoczywać, spacerować lub po prostu miło spędzać czas.',
         'map1-subtitle': 'Kliknij na mapę, aby zaznaczyć miejsca w terenie zielonym (lub w pobliżu), które często odwiedzasz. Zostaniesz poproszony o opisanie swoich doświadczeń w każdej lokalizacji.',
@@ -284,13 +284,13 @@ const translations = {
         'custom-emotion-prompt': 'Proszę opisz swoją emocję:',
         // Nostalgia Section
 
-        'nostalgia-title': 'Proszę wskazać swoje porozumienie:',
+        'nostalgia-title': '',
         'nostalgia-q1': 'Przebywanie w tym terenie zielonym sprawia, że czuję nostalgię.',
         'nostalgia-q2': 'Kiedy przybywam na tym terenie zielonym, często przywołuję wspomnienia z przeszłości.',
         'nostalgia-q3': 'Spędzanie czasu tutaj przypomina mi doświadczenia, którymi cieszyłem się wcześniej w życiu.',
         'nostalgia-q4': 'Lubię myśleć o swojej przeszlosci, kiedy spędzam czas na tym terenie zielonym.',
         // Psychological Well-Being Section
-        'pwb-title': 'Cześć 2: Proszę wskazać, w jakim stopniu zgadzasz się lub nie zgadzasz z każdym z poniższych stwierdzeń dotyczących Twojego dobrostanu psychicznego.',
+        'pwb-title': 'Proszę wskazać, w jakim stopniu zgadzasz się lub nie zgadzasz z każdym z poniższych stwierdzeń dotyczących Twojego dobrostanu psychicznego.',
         'pwb-q1': 'Lubię większość aspektów mojej osobowości.',
         'pwb-q2': 'Kiedy patrzę na historię mojego życia, jestem zadowolony z tego, jak się potoczyło do tej pory.',
         'pwb-q3': 'Niektórzy ludzie błąkają się bezcelowo przez życie, ale ja nie jestem jednym z nich.',
