@@ -570,9 +570,17 @@ function cancelDrawing() {
 }
 
 function clearAllDrawings() {
+    console.log('Clearing all drawings');
+    console.log('Before clear - drawnItems layers:', drawnItems.getLayers().length);
+    console.log('Before clear - actionHistory length:', actionHistory.length);
+    
     drawnItems.clearLayers();
     // Clear action history when clearing all drawings
     actionHistory = [];
+    
+    console.log('After clear - drawnItems layers:', drawnItems.getLayers().length);
+    console.log('After clear - actionHistory length:', actionHistory.length);
+    
     updateDrawingButtons();
 }
 
@@ -831,18 +839,30 @@ function undoLastAction() {
     }
     
     const lastAction = actionHistory.pop();
+    console.log('Undoing action:', lastAction);
     
     switch (lastAction.type) {
         case 'drawing':
-            // Remove the drawing from the map
+            // Remove the drawing from the map and drawnItems
             if (lastAction.layer) {
+                console.log('Removing drawing layer from drawnItems');
+                console.log('Before removal - drawnItems layers:', drawnItems.getLayers().length);
+                console.log('Layer to remove:', lastAction.layer);
+                
                 if (drawnItems.hasLayer(lastAction.layer)) {
                     drawnItems.removeLayer(lastAction.layer);
+                    console.log('Drawing layer removed from drawnItems');
+                } else {
+                    console.log('Layer not found in drawnItems');
                 }
+                
                 // Also remove from map if it's still there
                 if (map1.hasLayer(lastAction.layer)) {
                     map1.removeLayer(lastAction.layer);
+                    console.log('Drawing layer removed from map1');
                 }
+                
+                console.log('After removal - drawnItems layers:', drawnItems.getLayers().length);
             }
             break;
 
@@ -850,13 +870,27 @@ function undoLastAction() {
             // Remove the wildlife marker from the map and markers array
             if (lastAction.marker && map2.hasLayer(lastAction.marker)) {
                 map2.removeLayer(lastAction.marker);
-                const index = markers2.findIndex(m => m.lat === lastAction.lat && m.lng === lastAction.lng);
+                console.log('Wildlife marker removed from map2');
+                
+                // Remove from markers2 array using the stored data
+                const index = markers2.findIndex(m => 
+                    m.lat === lastAction.lat && 
+                    m.lng === lastAction.lng && 
+                    m.wildlife === lastAction.wildlife && 
+                    m.emotion === lastAction.emotion
+                );
                 if (index > -1) {
                     markers2.splice(index, 1);
+                    console.log('Wildlife marker removed from markers2 array at index:', index);
+                } else {
+                    console.log('Wildlife marker not found in markers2 array');
                 }
             }
             break;
     }
+    
+    console.log('After undo - drawnItems layers:', drawnItems.getLayers().length);
+    console.log('After undo - markers2 length:', markers2.length);
     
     updateDrawingButtons();
     showDrawingNotification('Last action undone');
@@ -916,7 +950,16 @@ function promptWildlifeInfo(latlng) {
         }
         
         const marker = L.marker(latlng).addTo(map2);
-        const markerId = 'wildlife_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        const markerId = 'wildlife_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9) + '_' + Math.random().toString(36).substr(2, 5);
+        
+        console.log('Creating wildlife marker with ID:', markerId);
+        console.log('Marker data:', {
+            id: markerId,
+            lat: latlng.lat,
+            lng: latlng.lng,
+            wildlife: wildlifeType,
+            emotion: selectedEmotion
+        });
         
         marker.bindPopup(`
             <div>
@@ -936,18 +979,27 @@ function promptWildlifeInfo(latlng) {
             marker: marker
         });
         
+        console.log('Marker added to markers2 array. Current length:', markers2.length);
+        
         // Add to action history for undo functionality
         addToHistory({
             type: 'wildlife',
             marker: marker,
             lat: latlng.lat,
-            lng: latlng.lng
+            lng: latlng.lng,
+            wildlife: wildlifeType,
+            emotion: selectedEmotion
         });
         
         // Add double-click to remove (keep this for backwards compatibility)
         marker.on('dblclick', function() {
             map2.removeLayer(marker);
-            const index = markers2.findIndex(m => m.lat === latlng.lat && m.lng === latlng.lng);
+            const index = markers2.findIndex(m => 
+                m.lat === latlng.lat && 
+                m.lng === latlng.lng && 
+                m.wildlife === wildlifeType && 
+                m.emotion === selectedEmotion
+            );
             if (index > -1) {
                 markers2.splice(index, 1);
             }
@@ -1114,8 +1166,12 @@ function collectFormData() {
     
     // Add drawing data from map1 - clean circular references
     const drawingData = [];
+    console.log('=== COLLECTING DRAWING DATA ===');
+    console.log('drawnItems layers count:', drawnItems.getLayers().length);
+    
     drawnItems.eachLayer(function(layer) {
         try {
+            console.log('Processing layer:', layer);
             const geoJSON = layer.toGeoJSON();
             geoJSON.properties = geoJSON.properties || {};
             geoJSON.properties.type = 'important_place_drawing';
@@ -1123,6 +1179,7 @@ function collectFormData() {
                 geoJSON.properties.description = layer.description;
             }
             drawingData.push(geoJSON);
+            console.log('Added drawing to data:', geoJSON.properties.description || 'No description');
         } catch (error) {
             console.log('Error processing drawing layer:', error);
         }
@@ -1139,9 +1196,12 @@ function collectFormData() {
     }));
     
     // Debug logging
+    console.log('=== COLLECTING FORM DATA ===');
     console.log('Markers2 (wildlife):', markers2);
     console.log('Clean markers2:', cleanMarkers2);
     console.log('Drawing data:', drawingData);
+    console.log('drawnItems layers count:', drawnItems.getLayers().length);
+    console.log('markers2 array length:', markers2.length);
     
     // Add map data with cleaned objects
     data.important_drawings = JSON.stringify(drawingData);
@@ -1248,14 +1308,58 @@ function validateAge(age) {
 
 // Global function to delete wildlife markers from popup buttons
 function deleteWildlifeMarker(markerId) {
-    const index = markers2.findIndex(m => m.id === markerId);
+    console.log('Attempting to delete wildlife marker with ID:', markerId);
+    console.log('Current markers2 array:', markers2);
+    
+    // First try to find by ID
+    let index = markers2.findIndex(m => m.id === markerId);
+    console.log('Found marker at index by ID:', index);
+    
+    // If not found by ID, try to find by other properties
+    if (index === -1) {
+        console.log('Marker not found by ID, trying alternative search...');
+        // This is a fallback in case the ID doesn't match
+        index = markers2.findIndex(m => 
+            m.type === 'Wildlife Encounter' && 
+            m.marker && 
+            m.marker._leaflet_id // Check if it's a valid Leaflet marker
+        );
+        console.log('Found marker at index by alternative search:', index);
+    }
+    
     if (index > -1) {
         const markerData = markers2[index];
+        console.log('Marker data to delete:', markerData);
+        
         if (markerData.marker) {
             map2.removeLayer(markerData.marker);
+            console.log('Marker removed from map2');
         }
+        
         markers2.splice(index, 1);
-        console.log('Wildlife marker deleted:', markerId);
+        console.log('Marker removed from markers2 array');
+        console.log('Updated markers2 array:', markers2);
+        
+        // Also remove from action history if it was the last action
+        if (actionHistory.length > 0) {
+            const lastAction = actionHistory[actionHistory.length - 1];
+            console.log('Last action in history:', lastAction);
+            
+            if (lastAction.type === 'wildlife' && 
+                lastAction.lat === markerData.lat && 
+                lastAction.lng === markerData.lng &&
+                lastAction.wildlife === markerData.wildlife &&
+                lastAction.emotion === markerData.emotion) {
+                actionHistory.pop();
+                console.log('Action removed from history');
+            }
+        }
+        
+        console.log('Final markers2 length:', markers2.length);
+        console.log('Final actionHistory length:', actionHistory.length);
+    } else {
+        console.log('Marker not found in markers2 array');
+        console.log('Available markers:', markers2.map(m => ({ id: m.id, type: m.type, wildlife: m.wildlife })));
     }
 }
 
