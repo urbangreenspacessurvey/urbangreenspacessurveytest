@@ -1,14 +1,14 @@
 // Global variables
 let currentLanguage = 'en';
 let map1, map2;
-let markers1 = [], markers2 = [];
-let tempMarkers1 = []; // Store temporary markers before saving
+let markers2 = [];
 let drawnItems;
 let drawControl;
 let isDrawing = false;
 let speechRecognition = null;
 let currentRecordingField = null;
 let isProcessingMarkers = false; // Add flag to prevent multiple processing
+let actionHistory = []; // Track drawing actions for undo functionality
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -123,9 +123,11 @@ function initializeSpeechRecognition() {
     }
     
     speechRecognition = new SpeechRecognition();
+    
+    // Improved settings for better recognition
     speechRecognition.continuous = true;
     speechRecognition.interimResults = true;
-    speechRecognition.maxAlternatives = 1;
+    speechRecognition.maxAlternatives = 3; // Get more alternatives for better accuracy
     
     // Set language based on current language preference
     speechRecognition.lang = currentLanguage === 'pl' ? 'pl-PL' : 'en-US';
@@ -136,7 +138,11 @@ function initializeSpeechRecognition() {
         if (currentRecordingField) {
             const btn = currentRecordingField.nextElementSibling;
             btn.classList.add('recording');
-            btn.innerHTML = '⏹️';
+            btn.innerHTML = '🎙️ Recording...';
+            btn.title = 'Click to stop recording';
+            
+            // Add visual feedback
+            showRecordingFeedback(true);
         }
     };
     
@@ -147,11 +153,22 @@ function initializeSpeechRecognition() {
         let interimTranscript = '';
         
         for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
+            // Use the best alternative (highest confidence)
+            let bestTranscript = event.results[i][0].transcript;
+            let bestConfidence = event.results[i][0].confidence;
+            
+            // Check for better alternatives
+            for (let j = 1; j < event.results[i].length; j++) {
+                if (event.results[i][j].confidence > bestConfidence) {
+                    bestTranscript = event.results[i][j].transcript;
+                    bestConfidence = event.results[i][j].confidence;
+                }
+            }
+            
             if (event.results[i].isFinal) {
-                finalTranscript += transcript;
+                finalTranscript += bestTranscript;
             } else {
-                interimTranscript += transcript;
+                interimTranscript += bestTranscript;
             }
         }
         
@@ -159,24 +176,49 @@ function initializeSpeechRecognition() {
         if (finalTranscript) {
             const currentText = currentRecordingField.value;
             const separator = currentText && !currentText.endsWith(' ') && !currentText.endsWith('\n') ? ' ' : '';
-            currentRecordingField.value = currentText + separator + finalTranscript;
+            currentRecordingField.value = currentText + separator + finalTranscript.trim();
+            
+            // Trigger input event for any listeners
+            currentRecordingField.dispatchEvent(new Event('input'));
+        }
+        
+        // Show interim results as placeholder or in a helper div
+        if (interimTranscript && currentRecordingField) {
+            showInterimFeedback(interimTranscript);
         }
     };
     
     speechRecognition.onerror = function(event) {
         console.error('Speech recognition error:', event.error);
-        stopRecording();
         
         const texts = translations[currentLanguage];
         let errorMessage = 'Speech recognition error: ' + event.error;
         
-        if (event.error === 'not-allowed') {
-            errorMessage = texts['speech-permission-error'] || 'Please allow microphone access to use speech recognition.';
-        } else if (event.error === 'no-speech') {
-            errorMessage = texts['speech-no-speech-error'] || 'No speech detected. Please try again.';
+        switch(event.error) {
+            case 'not-allowed':
+                errorMessage = texts['speech-permission-error'] || 'Please allow microphone access to use speech recognition.';
+                break;
+            case 'no-speech':
+                errorMessage = texts['speech-no-speech-error'] || 'No speech detected. Please try speaking louder or closer to the microphone.';
+                break;
+            case 'audio-capture':
+                errorMessage = 'No microphone was found. Please check your microphone connection.';
+                break;
+            case 'network':
+                errorMessage = 'Network error occurred during speech recognition.';
+                break;
+            case 'aborted':
+                // Don't show error for user-initiated stops
+                break;
+            default:
+                errorMessage = `Speech recognition error: ${event.error}. Please try again.`;
         }
         
-        showMessage(errorMessage, 'error');
+        if (event.error !== 'aborted') {
+            showMessage(errorMessage, 'error');
+        }
+        
+        stopRecording();
     };
     
     speechRecognition.onend = function() {
@@ -188,27 +230,102 @@ function initializeSpeechRecognition() {
     setupSpeechButtons();
 }
 
+function showRecordingFeedback(isRecording) {
+    const recordingIndicator = document.getElementById('recording-indicator');
+    if (!recordingIndicator) {
+        // Create recording indicator if it doesn't exist
+        const indicator = document.createElement('div');
+        indicator.id = 'recording-indicator';
+        indicator.style.cssText = `
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #dc3545;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            z-index: 1000;
+            display: none;
+            animation: pulse 1.5s infinite;
+        `;
+        indicator.innerHTML = '🎙️ Recording...';
+        document.body.appendChild(indicator);
+    }
+    
+    document.getElementById('recording-indicator').style.display = isRecording ? 'block' : 'none';
+}
+
+function showInterimFeedback(interimText) {
+    if (!currentRecordingField) return;
+    
+    let feedbackDiv = document.getElementById('interim-feedback');
+    if (!feedbackDiv) {
+        feedbackDiv = document.createElement('div');
+        feedbackDiv.id = 'interim-feedback';
+        feedbackDiv.style.cssText = `
+            position: absolute;
+            background: rgba(45, 138, 71, 0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            max-width: 300px;
+            word-wrap: break-word;
+            z-index: 100;
+            pointer-events: none;
+        `;
+        currentRecordingField.parentNode.style.position = 'relative';
+        currentRecordingField.parentNode.appendChild(feedbackDiv);
+    }
+    
+    feedbackDiv.textContent = `Listening: "${interimText.trim()}"`;
+    feedbackDiv.style.display = 'block';
+    
+    // Position it near the textarea
+    const rect = currentRecordingField.getBoundingClientRect();
+    feedbackDiv.style.top = (currentRecordingField.offsetTop - 30) + 'px';
+    feedbackDiv.style.left = currentRecordingField.offsetLeft + 'px';
+}
+
+function hideInterimFeedback() {
+    const feedbackDiv = document.getElementById('interim-feedback');
+    if (feedbackDiv) {
+        feedbackDiv.style.display = 'none';
+    }
+}
+
 function setupSpeechButtons() {
     const speechButtons = document.querySelectorAll('.speech-btn');
     
     speechButtons.forEach(btn => {
         btn.innerHTML = '🎤';
-        btn.addEventListener('click', function() {
-            const textarea = this.previousElementSibling;
-            
-            if (currentRecordingField && currentRecordingField === textarea) {
-                // Stop recording
-                stopRecording();
-            } else {
-                // Start recording
-                startRecording(textarea);
-            }
-        });
+        btn.title = 'Click to start voice recording';
+        
+        // Remove existing listeners to prevent duplicates
+        btn.removeEventListener('click', handleSpeechButtonClick);
+        btn.addEventListener('click', handleSpeechButtonClick);
     });
 }
 
+function handleSpeechButtonClick(event) {
+    const btn = event.target;
+    const textarea = btn.previousElementSibling;
+    
+    if (currentRecordingField && currentRecordingField === textarea) {
+        // Stop recording
+        stopRecording();
+    } else {
+        // Start recording
+        startRecording(textarea);
+    }
+}
+
 function startRecording(textarea) {
-    if (!speechRecognition) return;
+    if (!speechRecognition) {
+        showMessage('Speech recognition not available in this browser.', 'error');
+        return;
+    }
     
     // Stop any ongoing recording
     if (currentRecordingField) {
@@ -220,22 +337,53 @@ function startRecording(textarea) {
     // Update language if it has changed
     speechRecognition.lang = currentLanguage === 'pl' ? 'pl-PL' : 'en-US';
     
-    try {
-        speechRecognition.start();
-    } catch (error) {
-        console.error('Error starting speech recognition:', error);
-        showMessage('Could not start speech recognition. Please try again.', 'error');
-        currentRecordingField = null;
+    // Check for microphone permission first
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(function(stream) {
+                // Permission granted, stop the stream and start speech recognition
+                stream.getTracks().forEach(track => track.stop());
+                
+                try {
+                    speechRecognition.start();
+                } catch (error) {
+                    console.error('Error starting speech recognition:', error);
+                    showMessage('Could not start speech recognition. Please try again.', 'error');
+                    currentRecordingField = null;
+                }
+            })
+            .catch(function(error) {
+                console.error('Microphone permission denied:', error);
+                showMessage('Microphone access denied. Please allow microphone access to use voice recording.', 'error');
+                currentRecordingField = null;
+            });
+    } else {
+        // Fallback for older browsers
+        try {
+            speechRecognition.start();
+        } catch (error) {
+            console.error('Error starting speech recognition:', error);
+            showMessage('Could not start speech recognition. Please try again.', 'error');
+            currentRecordingField = null;
+        }
     }
 }
 
 function stopRecording() {
     if (speechRecognition && currentRecordingField) {
-        speechRecognition.stop();
+        try {
+            speechRecognition.stop();
+        } catch (error) {
+            console.error('Error stopping speech recognition:', error);
+        }
         
         const btn = currentRecordingField.nextElementSibling;
         btn.classList.remove('recording');
         btn.innerHTML = '🎤';
+        btn.title = 'Click to start voice recording';
+        
+        showRecordingFeedback(false);
+        hideInterimFeedback();
         
         currentRecordingField = null;
     }
@@ -259,12 +407,41 @@ function initializeMaps() {
             draw: {
                 polygon: {
                     allowIntersection: false,
-                    showArea: true
+                    showArea: true,
+                    shapeOptions: {
+                        color: '#2d8a47',
+                        weight: 2,
+                        opacity: 0.8,
+                        fillOpacity: 0.3
+                    }
                 },
-                polyline: true,
-                rectangle: true,
-                circle: true,
-                marker: false,
+                polyline: {
+                    shapeOptions: {
+                        color: '#2d8a47',
+                        weight: 3,
+                        opacity: 0.8
+                    }
+                },
+                rectangle: {
+                    showArea: true,
+                    shapeOptions: {
+                        color: '#2d8a47',
+                        weight: 2,
+                        opacity: 0.8,
+                        fillOpacity: 0.3
+                    }
+                },
+                marker: {
+                    icon: new L.Icon({
+                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41],
+                        popupAnchor: [1, -34],
+                        shadowSize: [41, 41]
+                    })
+                },
+                circle: false, // Remove circle as requested
                 circlemarker: false
             },
             edit: {
@@ -275,11 +452,53 @@ function initializeMaps() {
         
         // Don't add the control to map yet - we'll control it manually
         
+        // Track current drawing state for vertex-level undo (make global)
+        window.currentDrawing = null;
+        window.drawingVertices = [];
+        
         // Setup drawing event handlers
+        map1.on(L.Draw.Event.DRAWSTART, function(e) {
+            window.currentDrawing = e.layerType;
+            window.drawingVertices = [];
+            console.log('Drawing started:', window.currentDrawing);
+        });
+        
+        map1.on(L.Draw.Event.DRAWVERTEX, function(e) {
+            if (e.layers) {
+                window.drawingVertices = [];
+                e.layers.eachLayer(function(layer) {
+                    if (layer.getLatLngs) {
+                        const latlngs = layer.getLatLngs();
+                        if (Array.isArray(latlngs[0])) {
+                            // Polygon - flatten the array
+                            window.drawingVertices = latlngs[0];
+                        } else {
+                            // Polyline
+                            window.drawingVertices = latlngs;
+                        }
+                    }
+                });
+                console.log('Vertex added, total vertices:', window.drawingVertices.length);
+            }
+        });
+        
+        map1.on(L.Draw.Event.DRAWSTOP, function(e) {
+            window.currentDrawing = null;
+            window.drawingVertices = [];
+            console.log('Drawing stopped');
+        });
+        
         map1.on(L.Draw.Event.CREATED, function(e) {
             const layer = e.layer;
             drawnItems.addLayer(layer);
+            // Add to action history for undo functionality
+            addToHistory({
+                type: 'drawing',
+                layer: layer,
+                shapeType: e.layerType
+            });
             updateDrawingButtons();
+            // Don't save immediately - wait for user to click "Save Drawing"
         });
         
         map1.on(L.Draw.Event.DELETED, function(e) {
@@ -289,10 +508,13 @@ function initializeMaps() {
         // Setup custom drawing control buttons
         setupDrawingControls();
         
-        // Add click event for important places - now just adds marker without text prompt
-        map1.on('click', function(e) {
-            addTempMarker(e.latlng);
-        });
+        // Remove click event for important places - we only use drawing tools now
+        // map1.on('click', function(e) {
+        //     // Don't add temp marker if we're currently drawing
+        //     if (!isDrawing) {
+        //         addTempMarker(e.latlng);
+        //     }
+        // });
     }
     
     // Initialize map 2 for wildlife encounters
@@ -312,18 +534,21 @@ function initializeMaps() {
 function setupDrawingControls() {
     const startBtn = document.getElementById('start-drawing');
     const cancelBtn = document.getElementById('cancel-drawing');
+    const undoBtn = document.getElementById('undo-drawing');
     const clearBtn = document.getElementById('clear-drawings');
     const saveBtn = document.getElementById('save-drawing');
     
     // Remove existing event listeners to prevent duplicates
     startBtn.removeEventListener('click', startDrawing);
     cancelBtn.removeEventListener('click', cancelDrawing);
+    undoBtn.removeEventListener('click', undoLastAction);
     clearBtn.removeEventListener('click', clearAllDrawings);
     saveBtn.removeEventListener('click', saveDrawing);
     
     // Add event listeners
     startBtn.addEventListener('click', startDrawing);
     cancelBtn.addEventListener('click', cancelDrawing);
+    undoBtn.addEventListener('click', undoLastAction);
     clearBtn.addEventListener('click', clearAllDrawings);
     saveBtn.addEventListener('click', saveDrawing);
 }
@@ -346,27 +571,8 @@ function cancelDrawing() {
 
 function clearAllDrawings() {
     drawnItems.clearLayers();
-    // Also clear temporary markers
-    tempMarkers1.forEach(tempMarker => {
-        map1.removeLayer(tempMarker.marker);
-    });
-    tempMarkers1 = [];
-    // Also clear permanent markers
-    if (map1 && markers1.length > 0) {
-        markers1.forEach(marker => {
-            if (marker.layer) {
-                map1.removeLayer(marker.layer);
-            } else {
-                // Try to find and remove marker from map by lat/lng
-                map1.eachLayer(layer => {
-                    if (layer.getLatLng && layer.getLatLng().lat === marker.lat && layer.getLatLng().lng === marker.lng) {
-                        map1.removeLayer(layer);
-                    }
-                });
-            }
-        });
-    }
-    markers1 = [];
+    // Clear action history when clearing all drawings
+    actionHistory = [];
     updateDrawingButtons();
 }
 
@@ -376,19 +582,19 @@ function saveDrawing() {
         return;
     }
     
-    // Handle both drawings and temporary markers
-    if (tempMarkers1.length > 0) {
-        // Show one text form for all locations
+    // Handle drawings only
+    if (drawnItems.getLayers().length > 0) {
+        // Show form for individual drawings
         isProcessingMarkers = true;
-        showSingleTextForm();
+        showIndividualDrawingForm();
     } else {
-        // Original drawing save functionality
+        // Nothing to save
         const texts = translations[currentLanguage];
-        showDrawingNotification(texts['drawing-saved'] || 'Drawing saved! Continue with the survey.');
+        showDrawingNotification(texts['no-drawings'] || 'No drawings to save.');
     }
 }
 
-function showSingleTextForm() {
+function showIndividualDrawingForm() {
     // Check if a modal already exists to prevent duplicates
     const existingModal = document.querySelector('.place-experience-modal');
     if (existingModal) {
@@ -397,9 +603,25 @@ function showSingleTextForm() {
     
     const texts = translations[currentLanguage];
     
+    // Count total items to describe - only items that don't have descriptions yet
+    const unsavedDrawings = [];
+    drawnItems.eachLayer(function(layer) {
+        if (!layer.description) {
+            unsavedDrawings.push(layer);
+        }
+    });
+    const totalDrawings = unsavedDrawings.length;
+    const totalItems = totalDrawings;
+    
+    if (totalItems === 0) {
+        showDrawingNotification(texts['no-drawings'] || 'No drawings to save.');
+        isProcessingMarkers = false;
+        return;
+    }
+    
     // Create modal for better UX
     const modal = document.createElement('div');
-    modal.className = 'place-experience-modal'; // Add class for identification
+    modal.className = 'place-experience-modal';
     modal.style.cssText = `
         position: fixed;
         top: 0;
@@ -418,28 +640,59 @@ function showSingleTextForm() {
         background: white;
         padding: 30px;
         border-radius: 10px;
-        max-width: 500px;
+        max-width: 600px;
         width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
         box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     `;
     
-    modalContent.innerHTML = `
+    let formHTML = `
         <h3 style="margin-top: 0; color: #2d8a47;">${texts['place-experience-title'] || 'Tell us about these places'}</h3>
-        <p style="margin-bottom: 20px; color: #666;">You've marked ${tempMarkers1.length} location${tempMarkers1.length > 1 ? 's' : ''}. ${texts['place-experience-subtitle'] || 'What makes these locations special to you? Share your experience, memories, or why you like to visit these places.'}</p>
-        <textarea id="experienceText" style="width: 100%; height: 120px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: inherit; resize: vertical;" placeholder="${texts['place-experience-placeholder'] || 'Describe your experience at these locations...'}"></textarea>
+        <p style="margin-bottom: 20px; color: #666;">Please describe each drawing/location (one text per item):</p>
+    `;
+    
+    let itemIndex = 0;
+    
+    // Add textarea for each drawing that doesn't have a description yet
+    let drawingIndex = 0;
+    unsavedDrawings.forEach(function(layer) {
+        itemIndex++;
+        let shapeType = 'Drawing';
+        if (layer instanceof L.Polygon && !(layer instanceof L.Rectangle)) {
+            shapeType = 'Polygon';
+        } else if (layer instanceof L.Rectangle) {
+            shapeType = 'Rectangle';
+        } else if (layer instanceof L.Polyline) {
+            shapeType = 'Polyline';
+        } else if (layer instanceof L.Marker) {
+            shapeType = 'Marker';
+        }
+        
+        formHTML += `
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px;">${shapeType} ${itemIndex}:</label>
+                <textarea id="drawing_${drawingIndex}" style="width: 100%; height: 80px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: inherit; resize: vertical;" placeholder="Describe this ${shapeType.toLowerCase()}..."></textarea>
+            </div>
+        `;
+        drawingIndex++;
+    });
+    
+    formHTML += `
         <div style="margin-top: 20px; text-align: right;">
             <button id="cancelBtn" style="background: #ccc; color: #333; border: none; padding: 10px 20px; margin-right: 10px; border-radius: 5px; cursor: pointer;">${texts['cancel'] || 'Cancel'}</button>
-            <button id="saveBtn" style="background: #2d8a47; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">${texts['save'] || 'Save'}</button>
+            <button id="saveBtn" style="background: #2d8a47; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">${texts['save'] || 'Save All'}</button>
         </div>
     `;
     
+    modalContent.innerHTML = formHTML;
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
     
-    // Focus on textarea
+    // Focus on first textarea
     setTimeout(() => {
-        const textarea = document.getElementById('experienceText');
-        if (textarea) textarea.focus();
+        const firstTextarea = modalContent.querySelector('textarea');
+        if (firstTextarea) firstTextarea.focus();
     }, 100);
     
     // Handle save button
@@ -447,41 +700,16 @@ function showSingleTextForm() {
     const cancelBtn = modalContent.querySelector('#cancelBtn');
     
     const handleSave = function() {
-        const experienceText = document.getElementById('experienceText').value.trim();
-        if (experienceText) {
-            // Apply the same description to all temporary markers
-            tempMarkers1.forEach(tempMarker => {
-                const latlng = { lat: tempMarker.lat, lng: tempMarker.lng };
-                
-                // Remove temporary marker
-                map1.removeLayer(tempMarker.marker);
-                
-                // Add permanent marker with experience
-                const permanentMarker = L.marker(latlng).addTo(map1);
-                permanentMarker.bindPopup(`<b>Important Place</b><br/><em>${experienceText.substring(0, 100)}${experienceText.length > 100 ? '...' : ''}</em>`);
-                
-                markers1.push({
-                    lat: latlng.lat,
-                    lng: latlng.lng,
-                    type: 'Important Place',
-                    experience: experienceText
-                });
-                
-                // Add double-click to remove
-                permanentMarker.on('dblclick', function() {
-                    map1.removeLayer(permanentMarker);
-                    const index = markers1.findIndex(m => m.lat === latlng.lat && m.lng === latlng.lng);
-                    if (index > -1) {
-                        markers1.splice(index, 1);
-                    }
-                });
-            });
-            
-            // Clear temporary markers array and show success message
-            tempMarkers1 = [];
-            const texts = translations[currentLanguage];
-            showDrawingNotification(texts['drawing-saved'] || 'All locations have been saved! Continue with the survey.');
-        }
+        // Save drawing descriptions to layers that don't have descriptions yet
+        let drawingIndex = 0;
+        unsavedDrawings.forEach(function(layer) {
+            const description = document.getElementById(`drawing_${drawingIndex}`)?.value.trim() || '';
+            layer.description = description;
+            drawingIndex++;
+        });
+        
+        const texts = translations[currentLanguage];
+        showDrawingNotification(texts['drawing-saved'] || 'All shapes have been saved! Continue with the survey.');
         
         document.body.removeChild(modal);
         isProcessingMarkers = false;
@@ -512,6 +740,11 @@ function showSingleTextForm() {
         }
     };
     document.addEventListener('keydown', escapeHandler);
+}
+
+function showSingleTextForm() {
+    // This function is no longer needed - we use showIndividualDrawingForm instead
+    // when the user clicks "Save Drawing"
 }
 
 function showDrawingNotification(message) {
@@ -549,16 +782,18 @@ function showDrawingNotification(message) {
 function updateDrawingButtons() {
     const startBtn = document.getElementById('start-drawing');
     const cancelBtn = document.getElementById('cancel-drawing');
+    const undoBtn = document.getElementById('undo-drawing');
     const clearBtn = document.getElementById('clear-drawings');
     const saveBtn = document.getElementById('save-drawing');
     
     const hasDrawings = drawnItems.getLayers().length > 0;
-    const hasTempMarkers = tempMarkers1.length > 0;
+    const hasHistory = actionHistory.length > 0;
     
     startBtn.disabled = isDrawing;
     cancelBtn.disabled = !isDrawing;
-    clearBtn.disabled = !hasDrawings && !hasTempMarkers;
-    saveBtn.disabled = !hasDrawings && !hasTempMarkers;
+    undoBtn.disabled = !hasHistory;
+    clearBtn.disabled = !hasDrawings;
+    saveBtn.disabled = !hasDrawings;
     
     // Update button states
     if (isDrawing) {
@@ -568,6 +803,63 @@ function updateDrawingButtons() {
         startBtn.classList.remove('active');
         cancelBtn.classList.remove('active');
     }
+}
+
+// Action history functions for undo functionality
+function addToHistory(action) {
+    actionHistory.push(action);
+    // Keep only last 10 actions to prevent memory issues
+    if (actionHistory.length > 10) {
+        actionHistory.shift();
+    }
+    updateDrawingButtons();
+}
+
+function undoLastAction() {
+    // Check if we're currently drawing and have vertices to undo
+    if (window.currentDrawing && window.drawingVertices && window.drawingVertices.length > 0) {
+        console.log('Currently drawing, showing hint for vertex undo');
+        const texts = translations[currentLanguage];
+        showDrawingNotification(texts['undo-drawing-hint'] || 'Press Backspace while drawing to undo the last vertex, or press Escape to cancel the drawing.');
+        return;
+    }
+    
+    // Normal undo functionality for completed drawings and markers
+    if (actionHistory.length === 0) {
+        console.log('No actions to undo');
+        return;
+    }
+    
+    const lastAction = actionHistory.pop();
+    
+    switch (lastAction.type) {
+        case 'drawing':
+            // Remove the drawing from the map
+            if (lastAction.layer) {
+                if (drawnItems.hasLayer(lastAction.layer)) {
+                    drawnItems.removeLayer(lastAction.layer);
+                }
+                // Also remove from map if it's still there
+                if (map1.hasLayer(lastAction.layer)) {
+                    map1.removeLayer(lastAction.layer);
+                }
+            }
+            break;
+
+        case 'wildlife':
+            // Remove the wildlife marker from the map and markers array
+            if (lastAction.marker && map2.hasLayer(lastAction.marker)) {
+                map2.removeLayer(lastAction.marker);
+                const index = markers2.findIndex(m => m.lat === lastAction.lat && m.lng === lastAction.lng);
+                if (index > -1) {
+                    markers2.splice(index, 1);
+                }
+            }
+            break;
+    }
+    
+    updateDrawingButtons();
+    showDrawingNotification('Last action undone');
 }
 
 function addMarker(map, markersArray, latlng, color, type) {
@@ -588,38 +880,7 @@ function addMarker(map, markersArray, latlng, color, type) {
     });
 }
 
-function addTempMarker(latlng) {
-    const marker = L.marker(latlng, {
-        icon: L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png',
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-        })
-    }).addTo(map1);
-    
-    marker.bindPopup('<b>Important Place</b><br/><em>Click "Save Drawing" to add description</em>');
-    
-    tempMarkers1.push({
-        lat: latlng.lat,
-        lng: latlng.lng,
-        marker: marker
-    });
-    
-    // Add double-click to remove
-    marker.on('dblclick', function() {
-        map1.removeLayer(marker);
-        const index = tempMarkers1.findIndex(m => m.lat === latlng.lat && m.lng === latlng.lng);
-        if (index > -1) {
-            tempMarkers1.splice(index, 1);
-        }
-        updateDrawingButtons();
-    });
-    
-    updateDrawingButtons();
-}
+
 
 function promptWildlifeInfo(latlng) {
     const texts = translations[currentLanguage];
@@ -655,17 +916,35 @@ function promptWildlifeInfo(latlng) {
         }
         
         const marker = L.marker(latlng).addTo(map2);
-        marker.bindPopup(`<b>Wildlife:</b> ${wildlifeType}<br/><b>Emotion:</b> ${selectedEmotion}`);
+        const markerId = 'wildlife_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
+        marker.bindPopup(`
+            <div>
+                <b>Wildlife:</b> ${wildlifeType}<br/>
+                <b>Emotion:</b> ${selectedEmotion}<br/>
+                <button onclick="deleteWildlifeMarker('${markerId}')" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; margin-top: 5px;">🗑️ Delete</button>
+            </div>
+        `);
         
         markers2.push({
+            id: markerId,
             lat: latlng.lat,
             lng: latlng.lng,
             type: 'Wildlife Encounter',
             wildlife: wildlifeType,
-            emotion: selectedEmotion
+            emotion: selectedEmotion,
+            marker: marker
         });
         
-        // Add double-click to remove
+        // Add to action history for undo functionality
+        addToHistory({
+            type: 'wildlife',
+            marker: marker,
+            lat: latlng.lat,
+            lng: latlng.lng
+        });
+        
+        // Add double-click to remove (keep this for backwards compatibility)
         marker.on('dblclick', function() {
             map2.removeLayer(marker);
             const index = markers2.findIndex(m => m.lat === latlng.lat && m.lng === latlng.lng);
@@ -684,23 +963,142 @@ function validateForm() {
     for (let field of consentFields) {
         const selected = document.querySelector(`input[name="${field}"]:checked`);
         if (!selected) {
+            // Find the field element to scroll to
+            const fieldElement = document.querySelector(`input[name="${field}"]`);
+            if (fieldElement) {
+                fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
             showMessage(texts['validation-error'], 'error');
             return false;
         }
     }
     
-    // Place attachment questions are not required - remove this validation
-    // Check if at least some place attachment questions are answered
-    // let attachmentAnswered = 0;
-    // for (let i = 1; i <= 14; i++) {
-    //     const selected = document.querySelector(`input[name="pa${i}"]:checked`);
-    //     if (selected) attachmentAnswered++;
-    // }
+    // Add test mode for development - only validate consent fields
+    const isTestMode = window.location.search.includes('test=true');
     
-    // if (attachmentAnswered < 5) {
-    //     showMessage('Please answer at least 5 place attachment questions.', 'error');
-    //     return false;
-    // }
+    if (isTestMode) {
+        return true; // Skip all other validations
+    }
+    
+    // Check picture response
+    const pictureResponse = document.querySelector('input[name="picture_response"]:checked');
+    if (!pictureResponse) {
+        const fieldElement = document.querySelector('input[name="picture_response"]');
+        if (fieldElement) {
+            fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        showMessage(texts['validation-error'] + ' (Picture response is required)', 'error');
+        return false;
+    }
+    
+    // Check place attachment questions (pa1-pa14)
+    for (let i = 1; i <= 14; i++) {
+        const selected = document.querySelector(`input[name="pa${i}"]:checked`);
+        if (!selected) {
+            const fieldElement = document.querySelector(`input[name="pa${i}"]`);
+            if (fieldElement) {
+                fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            showMessage(texts['validation-error'] + ` (Place attachment question ${i} is required)`, 'error');
+            return false;
+        }
+    }
+    
+    // Check nostalgia questions (nostalgia1-nostalgia4)
+    for (let i = 1; i <= 4; i++) {
+        const selected = document.querySelector(`input[name="nostalgia${i}"]:checked`);
+        if (!selected) {
+            const fieldElement = document.querySelector(`input[name="nostalgia${i}"]`);
+            if (fieldElement) {
+                fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            showMessage(texts['validation-error'] + ` (Nostalgia question ${i} is required)`, 'error');
+            return false;
+        }
+    }
+    
+    // Check psychological well-being questions (pwb1-pwb18)
+    for (let i = 1; i <= 18; i++) {
+        const selected = document.querySelector(`input[name="pwb${i}"]:checked`);
+        if (!selected) {
+            const fieldElement = document.querySelector(`input[name="pwb${i}"]`);
+            if (fieldElement) {
+                fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            showMessage(texts['validation-error'] + ` (Well-being question ${i} is required)`, 'error');
+            return false;
+        }
+    }
+    
+    // Check social and environmental justice questions (soj1-soj11)
+    for (let i = 1; i <= 11; i++) {
+        const selected = document.querySelector(`input[name="soj${i}"]:checked`);
+        if (!selected) {
+            const fieldElement = document.querySelector(`input[name="soj${i}"]`);
+            if (fieldElement) {
+                fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            showMessage(texts['validation-error'] + ` (Justice question ${i} is required)`, 'error');
+            return false;
+        }
+    }
+    
+    // Check wildlife questions (wildlife1-wildlife9)
+    for (let i = 1; i <= 9; i++) {
+        const selected = document.querySelector(`input[name="wildlife${i}"]:checked`);
+        if (!selected) {
+            const fieldElement = document.querySelector(`input[name="wildlife${i}"]`);
+            if (fieldElement) {
+                fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            showMessage(texts['validation-error'] + ` (Wildlife question ${i} is required)`, 'error');
+            return false;
+        }
+    }
+    
+    // Check open-ended questions (required text fields)
+    const textFields = ['first_visit', 'site_background', 'wildlife_sharing', 'future_vision'];
+    for (let field of textFields) {
+        const element = document.querySelector(`textarea[name="${field}"]`);
+        if (!element || !element.value.trim()) {
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            showMessage(texts['validation-error'] + ` (${field.replace('_', ' ')} is required)`, 'error');
+            return false;
+        }
+    }
+    
+    // Check demographics
+    const demographicFields = ['distance', 'gender', 'education', 'visit_frequency'];
+    for (let field of demographicFields) {
+        const selected = document.querySelector(`input[name="${field}"]:checked`);
+        if (!selected) {
+            const fieldElement = document.querySelector(`input[name="${field}"]`);
+            if (fieldElement) {
+                fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            showMessage(texts['validation-error'] + ` (${field.replace('_', ' ')} is required)`, 'error');
+            return false;
+        }
+    }
+    
+    // Check age
+    const ageInput = document.querySelector('input[name="age"]');
+    if (!ageInput || !ageInput.value.trim()) {
+        if (ageInput) {
+            ageInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        showMessage(texts['validation-error'] + ' (Age is required)', 'error');
+        return false;
+    }
+    
+    // Validate age is a number
+    if (!validateAge(ageInput.value)) {
+        ageInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        showMessage('Please enter a valid age between 18 and 120.', 'error');
+        return false;
+    }
     
     return true;
 }
@@ -714,19 +1112,40 @@ function collectFormData() {
         data[key] = value;
     }
     
-    // Add drawing data from map1
+    // Add drawing data from map1 - clean circular references
     const drawingData = [];
     drawnItems.eachLayer(function(layer) {
-        const geoJSON = layer.toGeoJSON();
-        geoJSON.properties = geoJSON.properties || {};
-        geoJSON.properties.type = 'important_place_drawing';
-        drawingData.push(geoJSON);
+        try {
+            const geoJSON = layer.toGeoJSON();
+            geoJSON.properties = geoJSON.properties || {};
+            geoJSON.properties.type = 'important_place_drawing';
+            if (layer.description) {
+                geoJSON.properties.description = layer.description;
+            }
+            drawingData.push(geoJSON);
+        } catch (error) {
+            console.log('Error processing drawing layer:', error);
+        }
     });
     
-    // Add map data
-    data.important_places = JSON.stringify(markers1); // Keep old markers if any
-    data.important_drawings = JSON.stringify(drawingData); // New drawing data
-    data.wildlife_encounters = JSON.stringify(markers2);
+    // Clean markers2 data - remove circular references  
+    const cleanMarkers2 = markers2.map(marker => ({
+        id: marker.id,
+        lat: marker.lat,
+        lng: marker.lng,
+        type: marker.type,
+        wildlife: marker.wildlife || '',
+        emotion: marker.emotion || ''
+    }));
+    
+    // Debug logging
+    console.log('Markers2 (wildlife):', markers2);
+    console.log('Clean markers2:', cleanMarkers2);
+    console.log('Drawing data:', drawingData);
+    
+    // Add map data with cleaned objects
+    data.important_drawings = JSON.stringify(drawingData);
+    data.wildlife_encounters = JSON.stringify(cleanMarkers2);
     
     // Add language preference
     data.language = currentLanguage;
@@ -750,6 +1169,10 @@ async function submitForm() {
     try {
         const formData = collectFormData();
         
+        if (!window.offlineManager) {
+            throw new Error('Offline manager not initialized');
+        }
+        
         // Use offline manager for submission
         const result = await window.offlineManager.submitSurvey(formData);
         
@@ -765,17 +1188,12 @@ async function submitForm() {
             document.getElementById('survey-form').reset();
             
             // Clear map markers
-            if (map1) {
-                markers1.forEach(marker => {
-                    if (marker.layer) map1.removeLayer(marker.layer);
-                });
-            }
             if (map2) {
                 markers2.forEach(marker => {
                     if (marker.layer) map2.removeLayer(marker.layer);
+                    if (marker.marker) map2.removeLayer(marker.marker);
                 });
             }
-            markers1 = [];
             markers2 = [];
             
             // Clear drawings
@@ -785,6 +1203,8 @@ async function submitForm() {
             if (isDrawing) {
                 cancelDrawing();
             }
+            // Clear action history
+            actionHistory = [];
             updateDrawingButtons();
         } else {
             throw new Error('Failed to save survey');
@@ -793,8 +1213,7 @@ async function submitForm() {
     } catch (error) {
         console.error('Error submitting survey:', error);
         showMessage(texts['error'] || 'Error submitting survey. Please try again.', 'error');
-        // Scroll to top to show the error message
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Remove automatic scroll - let showMessage handle positioning
     } finally {
         loading.style.display = 'none';
         submitBtn.disabled = false;
@@ -807,8 +1226,8 @@ function showMessage(message, type) {
     messageDiv.className = type;
     messageDiv.style.display = 'block';
     
-    // Ensure the message is visible by scrolling to it
-    messageDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Don't scroll to message - let validation handle positioning
+    // The message will be visible where the user is
     
     // Auto-hide after 8 seconds (increased from 5)
     setTimeout(() => {
@@ -827,6 +1246,25 @@ function validateAge(age) {
     return !isNaN(ageNum) && ageNum >= 18 && ageNum <= 120;
 }
 
+// Global function to delete wildlife markers from popup buttons
+function deleteWildlifeMarker(markerId) {
+    const index = markers2.findIndex(m => m.id === markerId);
+    if (index > -1) {
+        const markerData = markers2[index];
+        if (markerData.marker) {
+            map2.removeLayer(markerData.marker);
+        }
+        markers2.splice(index, 1);
+        console.log('Wildlife marker deleted:', markerId);
+    }
+}
+
 // Make functions globally available
 window.switchLanguage = switchLanguage;
 window.submitForm = submitForm; 
+window.deleteWildlifeMarker = deleteWildlifeMarker;
+
+// Initialize form when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Form is ready
+});

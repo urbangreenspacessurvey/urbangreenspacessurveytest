@@ -446,6 +446,54 @@
         body.with-status {
             padding-top: 50px;
         }
+
+        /* Hide only the drawing guide/helper text, keep all buttons */
+        .leaflet-draw-tooltip {
+            display: none !important;
+        }
+        
+        /* Style the drawing toolbar to match the design */
+        .leaflet-draw-toolbar {
+            background: white !important;
+            border: 2px solid #2d8a47 !important;
+            border-radius: 8px !important;
+            padding: 5px !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+        }
+        
+        .leaflet-draw-toolbar a {
+            border: 1px solid #2d8a47 !important;
+            border-radius: 4px !important;
+            margin: 2px !important;
+        }
+        
+        .leaflet-draw-toolbar a:hover {
+            background-color: #2d8a47 !important;
+        }
+        
+        /* Style the action buttons (Save, Cancel) */
+        .leaflet-draw-actions {
+            background: white !important;
+            border: 2px solid #2d8a47 !important;
+            border-radius: 8px !important;
+            padding: 5px !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+        }
+        
+        .leaflet-draw-actions a {
+            background: #2d8a47 !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 4px !important;
+            padding: 8px 12px !important;
+            margin: 2px !important;
+            text-decoration: none !important;
+            font-weight: bold !important;
+        }
+        
+        .leaflet-draw-actions a:hover {
+            background: #1f5f32 !important;
+        }
     </style>
   </head>
   <body class="with-status">
@@ -1218,6 +1266,7 @@
             <div class="drawing-controls">
                 <button type="button" class="drawing-btn" id="start-drawing" data-i18n="start-drawing">Start Drawing</button>
                 <button type="button" class="drawing-btn" id="cancel-drawing" data-i18n="cancel-drawing" disabled>Cancel Drawing</button>
+                <button type="button" class="drawing-btn" id="undo-drawing" data-i18n="undo-drawing" disabled>Undo Last</button>
                 <button type="button" class="drawing-btn" id="clear-drawings" data-i18n="clear-drawings">Clear All</button>
                 <button type="button" class="drawing-btn" id="save-drawing" data-i18n="save-drawing" disabled>Save Drawing</button>
             </div>

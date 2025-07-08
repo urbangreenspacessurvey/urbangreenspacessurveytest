@@ -34,7 +34,7 @@ db.serialize(() => {
         wildlife7 INTEGER, wildlife8 INTEGER, wildlife9 INTEGER,
         first_visit TEXT, site_background TEXT, wildlife_sharing TEXT, future_vision TEXT, contact_info TEXT,
         distance TEXT, age TEXT, gender TEXT, education TEXT, visit_frequency TEXT,
-        important_places TEXT, important_drawings TEXT, wildlife_encounters TEXT,
+        important_drawings TEXT, wildlife_encounters TEXT,
         important_places_data TEXT, wildlife_encounters_data TEXT, drawings_data TEXT
     )`);
     
@@ -73,6 +73,8 @@ db.serialize(() => {
             console.error('Error adding important_places_data column:', err);
         }
     });
+    
+
 });
 
 // Routes
@@ -110,7 +112,14 @@ app.get('/database', (req, res) => {
             .long-text{max-width:200px;word-wrap:break-word;font-size:0.8em}
             .map-data{max-width:300px;font-size:0.8em;word-wrap:break-word}
             .marker-count{background:#2d8a47;color:white;padding:2px 6px;border-radius:3px;font-size:0.8em}
-            </style></head><body><div class="container"><h1>🌿 Green Spaces Survey Database</h1>
+            .delete-btn{background:#dc3545;color:white;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:0.8em;font-weight:bold}
+            .delete-btn:hover{background:#c82333}
+            .delete-col{text-align:center;min-width:80px;max-width:80px}
+            </style></head><body><div class="container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h1>🌿 Green Spaces Survey Database</h1>
+                <a href="/" style="background: #2d8a47; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">← Back to Survey</a>
+            </div>
             <div style="text-align:center;margin:20px 0">
             <a href="/download-csv" class="download-btn">⬇️ Download CSV</a></div>`;
             
@@ -126,7 +135,7 @@ app.get('/database', (req, res) => {
                 '<th>WF1</th><th>WF2</th><th>WF3</th><th>WF4</th><th>WF5</th><th>WF6</th><th>WF7</th><th>WF8</th><th>WF9</th><th>WF_Avg</th>' +
                 '<th>Age</th><th>Gender</th><th>Education</th><th>Distance</th><th>Visit_Freq</th>' +
                 '<th>First_Visit</th><th>Background</th><th>Wildlife_Share</th><th>Future</th><th>Contact</th>' +
-                '<th>Important_Places</th><th>Wildlife_Encounters</th><th>Drawings</th>' +
+                '<th>Wildlife_Encounters</th><th>Drawings</th><th>Delete</th>' +
                 '</tr></thead><tbody>';
                 
                 surveys.forEach(survey => {
@@ -147,9 +156,14 @@ app.get('/database', (req, res) => {
                     const wildlifeAvg = wildlifeValues.length > 0 ? (wildlifeValues.reduce((a, b) => a + b, 0) / wildlifeValues.length).toFixed(2) : '';
                     
                     const date = new Date(survey.created_at).toLocaleString();
-                    const importantPlacesData = survey.important_places_data || '';
                     const wildlifeData = survey.wildlife_encounters_data || '';
-                    const drawingsData = survey.drawings_data || '';
+                    
+                    // Format drawings data to show description : WKT format nicely
+                    let drawingsData = '';
+                    if (survey.drawings_data) {
+                        const wktStrings = survey.drawings_data.split(';').filter(wkt => wkt.trim());
+                        drawingsData = wktStrings.map((wkt, index) => `${index + 1}: ${wkt.trim()}`).join('<br/>');
+                    }
                     
                     html += `<tr>
                         <td class="number-col">${survey.id}</td>
@@ -227,16 +241,42 @@ app.get('/database', (req, res) => {
                         <td class="long-text">${survey.wildlife_sharing || ''}</td>
                         <td class="long-text">${survey.future_vision || ''}</td>
                         <td class="long-text">${survey.contact_info || ''}</td>
-                        <td class="map-data">${importantPlacesData}</td>
                         <td class="map-data">${wildlifeData}</td>
                         <td class="map-data">${drawingsData}</td>
+                        <td class="delete-col"><button class="delete-btn" onclick="deleteSurvey(${survey.id})">🗑️ Delete</button></td>
                     </tr>`;
                 });
                 
                 html += '</tbody></table></div>';
             }
             
-            html += '</div></body></html>';
+            html += `
+            <script>
+            function deleteSurvey(surveyId) {
+                if (confirm('Are you sure you want to delete this survey? This action cannot be undone.')) {
+                    fetch('/delete-survey/' + surveyId, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Survey deleted successfully!');
+                            location.reload(); // Refresh the page to show updated data
+                        } else {
+                            alert('Error deleting survey: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error deleting survey. Please try again.');
+                    });
+                }
+            }
+            </script>
+            </div></body></html>`;
             res.send(html);
         });
     });
@@ -261,7 +301,7 @@ app.get('/download-csv', (req, res) => {
             'Wildlife1', 'Wildlife2', 'Wildlife3', 'Wildlife4', 'Wildlife5', 'Wildlife6', 'Wildlife7', 'Wildlife8', 'Wildlife9', 'Wildlife_Average',
             'Age', 'Gender', 'Education', 'Distance', 'Visit_Frequency',
             'First_Visit', 'Site_Background', 'Wildlife_Sharing', 'Future_Vision', 'Total_Map_Markers',
-            'Important_Places_Data', 'Wildlife_Encounters_Data', 'Drawings_Data'
+            'Wildlife_Encounters_Data', 'Drawings_Data'
         ];
         
         let csvContent = headers.join(',') + '\n';
@@ -270,7 +310,7 @@ app.get('/download-csv', (req, res) => {
             let importantPlaces = [], importantDrawings = [], wildlifeEncounters = [];
             
             try {
-                importantPlaces = survey.important_places ? JSON.parse(survey.important_places) : [];
+    
                 importantDrawings = survey.important_drawings ? JSON.parse(survey.important_drawings) : [];
                 wildlifeEncounters = survey.wildlife_encounters ? JSON.parse(survey.wildlife_encounters) : [];
             } catch (e) {}
@@ -312,7 +352,7 @@ app.get('/download-csv', (req, res) => {
                 survey.wildlife_sharing ? `"${survey.wildlife_sharing.replace(/"/g, '""')}"` : '',
                 survey.future_vision ? `"${survey.future_vision.replace(/"/g, '""')}"` : '',
                 importantPlaces.length + importantDrawings.length + wildlifeEncounters.length,
-                survey.important_places_data || '',
+
                 survey.wildlife_encounters_data || '',
                 survey.drawings_data || ''
             ];
@@ -343,41 +383,113 @@ app.post('/submit-survey', (req, res) => {
         importantDrawings = [];
     }
     
-    const formatImportantPlaces = (places) => {
-        if (!places || places.length === 0) return '';
-        return places.map(p => `${p.type || 'Place'}:${(p.experience || '').substring(0, 50)}${(p.experience || '').length > 50 ? '...' : ''}(${p.lat},${p.lng})`).join(';');
-    };
+
     
     const formatWildlifeEncounters = (encounters) => {
+        console.log('Formatting wildlife encounters:', encounters);
         if (!encounters || encounters.length === 0) return '';
-        return encounters.map(e => `${e.wildlife}:${e.emotion}(${e.lat},${e.lng})`).join(';');
+        return encounters.map(e => {
+            const lat = parseFloat(e.lat) || 0;
+            const lng = parseFloat(e.lng) || 0;
+            const wildlife = e.wildlife || '';
+            const emotion = e.emotion || '';
+            
+            console.log('Processing encounter:', { lat, lng, wildlife, emotion });
+            
+            // Format as "wildlife:emotion : POINT(lng lat)" if both exist
+            if (wildlife && emotion) {
+                return `${wildlife}:${emotion} : POINT(${lng} ${lat})`;
+            } else if (wildlife) {
+                return `${wildlife} : POINT(${lng} ${lat})`;
+            } else {
+                return `POINT(${lng} ${lat})`;
+            }
+        }).join(';');
     };
     
     const formatDrawings = (drawings) => {
         if (!drawings || drawings.length === 0) return '';
         return drawings.map(drawing => {
-            if (drawing.geometry && drawing.geometry.coordinates) {
-                const coords = drawing.geometry.coordinates;
-                if (coords.length > 0) {
-                    // Calculate average coordinates
-                    const avgLat = coords.reduce((sum, coord) => sum + coord[1], 0) / coords.length;
-                    const avgLng = coords.reduce((sum, coord) => sum + coord[0], 0) / coords.length;
-                    return `LineString(${avgLat},${avgLng})`;
-                }
+            if (!drawing.geometry || !drawing.geometry.coordinates) {
+                return 'POINT(0 0)'; // Fallback
             }
-            return 'LineString(unknown)';
+            
+            const coords = drawing.geometry.coordinates;
+            const geometryType = drawing.geometry.type;
+            const description = drawing.properties?.description || '';
+            
+            let wkt = '';
+            
+            try {
+                switch (geometryType) {
+                    case 'Point':
+                        const [lng, lat] = coords;
+                        wkt = `POINT(${lng} ${lat})`;
+                        break;
+                    
+                    case 'LineString':
+                        const lineCoords = coords.map(coord => `${coord[0]} ${coord[1]}`).join(', ');
+                        wkt = `LINESTRING(${lineCoords})`;
+                        break;
+                    
+                    case 'Polygon':
+                        // For polygons, we need to handle the outer ring
+                        const outerRing = coords[0];
+                        const polygonCoords = outerRing.map(coord => `${coord[0]} ${coord[1]}`).join(', ');
+                        wkt = `POLYGON((${polygonCoords}))`;
+                        break;
+                    
+                    case 'Circle':
+                        // Convert circle to square polygon for WKT compatibility
+                        const center = coords;
+                        const radius = drawing.radius || 0.001; // Default small radius
+                        const centerLng = center[0];
+                        const centerLat = center[1];
+                        
+                        // Create a square around the circle center
+                        const squareCoords = [
+                            [centerLng - radius, centerLat - radius],
+                            [centerLng - radius, centerLat + radius],
+                            [centerLng + radius, centerLat + radius],
+                            [centerLng + radius, centerLat - radius],
+                            [centerLng - radius, centerLat - radius] // Close the polygon
+                        ];
+                        
+                        const squareWKT = squareCoords.map(coord => `${coord[0]} ${coord[1]}`).join(', ');
+                        wkt = `POLYGON((${squareWKT}))`;
+                        break;
+                    
+                    case 'Rectangle':
+                        // Convert rectangle to polygon
+                        const rectCoords = coords[0]; // Rectangle coordinates
+                        const rectWKT = rectCoords.map(coord => `${coord[0]} ${coord[1]}`).join(', ');
+                        wkt = `POLYGON((${rectWKT}))`;
+                        break;
+                    
+                    default:
+                        console.warn('Unknown geometry type:', geometryType);
+                        // Fallback: try to treat as point if possible
+                        if (coords.length === 2 && typeof coords[0] === 'number') {
+                            wkt = `POINT(${coords[0]} ${coords[1]})`;
+                        } else {
+                            wkt = 'POINT(0 0)';
+                        }
+                        break;
+                }
+            } catch (error) {
+                console.error('Error processing geometry:', error, drawing);
+                wkt = 'POINT(0 0)'; // Fallback
+            }
+            
+            // Format as "description : WKT" if description exists
+            if (description && description.trim()) {
+                return `${description.trim()} : ${wkt}`;
+            } else {
+                return wkt;
+            }
         }).join(';');
     };
     
-    let importantPlaces = [];
-    try {
-        importantPlaces = data.important_places ? JSON.parse(data.important_places) : [];
-    } catch (e) {
-        console.error('Error parsing important places for storage:', e);
-        importantPlaces = [];
-    }
-    
-    const importantPlacesData = formatImportantPlaces(importantPlaces);
     const wildlifeEncountersData = formatWildlifeEncounters(wildlifeEncounters);
     const drawingsData = formatDrawings(importantDrawings);
 
@@ -390,9 +502,9 @@ app.post('/submit-survey', (req, res) => {
         wildlife1, wildlife2, wildlife3, wildlife4, wildlife5, wildlife6, wildlife7, wildlife8, wildlife9,
         first_visit, site_background, wildlife_sharing, future_vision, contact_info,
         distance, age, gender, education, visit_frequency,
-        important_places, important_drawings, wildlife_encounters,
+        important_drawings, wildlife_encounters,
         important_places_data, wildlife_encounters_data, drawings_data
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     
     const values = [
         data.language || 'en',
@@ -404,10 +516,9 @@ app.post('/submit-survey', (req, res) => {
         data.wildlife1, data.wildlife2, data.wildlife3, data.wildlife4, data.wildlife5, data.wildlife6, data.wildlife7, data.wildlife8, data.wildlife9,
         data.first_visit, data.site_background, data.wildlife_sharing, data.future_vision, data.contact_info,
         data.distance, data.age, data.gender, data.education, data.visit_frequency,
-        data.important_places || '[]',
         data.important_drawings || '[]', 
         data.wildlife_encounters || '[]',
-        importantPlacesData,
+        '', // important_places_data (empty since we removed the feature)
         wildlifeEncountersData,
         drawingsData
     ];
@@ -426,15 +537,6 @@ app.post('/submit-survey', (req, res) => {
             // Use the already parsed data
             
             const allMarkers = [
-                ...importantPlaces.map(place => ({
-                    survey_id: surveyId,
-                    map_type: 'important_place',
-                    latitude: place.lat,
-                    longitude: place.lng,
-                    marker_type: place.type,
-                    experience_text: place.experience || null,
-                    geojson_data: JSON.stringify(place)
-                })),
                 ...wildlifeEncounters.map(encounter => ({
                     survey_id: surveyId,
                     map_type: 'wildlife_encounter',
@@ -482,6 +584,42 @@ app.post('/submit-survey', (req, res) => {
             success: true, 
             message: 'Survey submitted successfully!',
             surveyId: surveyId
+        });
+    });
+});
+
+// DELETE route for individual survey entries
+app.delete('/delete-survey/:id', (req, res) => {
+    const surveyId = req.params.id;
+    
+    if (!surveyId || isNaN(surveyId)) {
+        return res.status(400).json({ error: 'Invalid survey ID' });
+    }
+    
+    // First delete associated map markers
+    db.run('DELETE FROM map_markers WHERE survey_id = ?', [surveyId], function(err) {
+        if (err) {
+            console.error('Error deleting map markers:', err);
+            return res.status(500).json({ error: 'Error deleting survey data' });
+        }
+        
+        // Then delete the survey itself
+        db.run('DELETE FROM surveys WHERE id = ?', [surveyId], function(err) {
+            if (err) {
+                console.error('Error deleting survey:', err);
+                return res.status(500).json({ error: 'Error deleting survey' });
+            }
+            
+            if (this.changes === 0) {
+                return res.status(404).json({ error: 'Survey not found' });
+            }
+            
+            console.log(`Survey ${surveyId} deleted successfully`);
+            res.json({ 
+                success: true, 
+                message: 'Survey deleted successfully',
+                surveyId: surveyId
+            });
         });
     });
 });
