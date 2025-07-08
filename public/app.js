@@ -1168,10 +1168,13 @@ function collectFormData() {
     const drawingData = [];
     console.log('=== COLLECTING DRAWING DATA ===');
     console.log('drawnItems layers count:', drawnItems.getLayers().length);
+    console.log('Action history length:', actionHistory.length);
+    console.log('Action history:', actionHistory);
     
     drawnItems.eachLayer(function(layer) {
         try {
             console.log('Processing layer:', layer);
+            console.log('Layer description:', layer.description);
             const geoJSON = layer.toGeoJSON();
             geoJSON.properties = geoJSON.properties || {};
             geoJSON.properties.type = 'important_place_drawing';
