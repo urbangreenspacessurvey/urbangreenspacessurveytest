@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "headers": [{"source":"/(.*)","headers":[{"key":"Cache-Control","value":"no-store, max-age=0"}]}],
+  "rewrites": [
+    {"source":"/play","destination":"/index.html"},
+    {"source":"/facilitator","destination":"/index.html"},
+    {"source":"/research","destination":"/index.html"},
+    {"source":"/","destination":"/index.html"}
+  ]
+}
